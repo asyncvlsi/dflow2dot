@@ -1,8 +1,8 @@
 /*************************************************************************
  *
- *  This file is part of the ACT gate sizing pass implementation
+ *  This file is part of the ACT dataflow visualization pass
  *
- *  Copyright (c) 2022 Rajit Manohar, Lucas Nel
+ *  Copyright (c) 2023 Rajit Manohar
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
