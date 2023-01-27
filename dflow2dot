@@ -1,0 +1,35 @@
+#!/usr/bin/env interact
+#
+# dflowgraph interact script
+#
+
+
+define top-level ""
+define actfile ""
+
+define usage (lambda () (begin (echo "Usage: " (getargv 0) "-p <proc> <act>") (exit 1)))
+
+getopt "p:"
+load-scm "act-opt.scm"
+
+act:get-options '(("p:" top-level))
+
+if (=? (length act:remaining-args) 1) #t (usage)
+
+if (=? (string-length top-level) 0) (usage) #t
+
+set! actfile (car act:remaining-args)
+
+#
+# Read in design and set top-level process name
+#
+act:read actfile
+act:expand
+act:top top-level
+
+act:pass:load "dflowgraph_pass.so" "mypass" "dflowgraph"
+
+# run pass
+act:pass:run "mypass" 0
+
+
