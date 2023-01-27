@@ -509,7 +509,22 @@ void *dflowgraph_proc (ActPass *ap, Process *p, int mode)
       FREE (ch);
     }
     phash_free (H);
-    printDOT (ag, stdout, p->getName());
+
+    FILE *fp;
+    int len = 0;
+    char buf[1024];
+    Act *a = ap->getAct();
+
+    a->msnprintfproc (buf, 1024, p);
+    len = strlen (buf);
+    snprintf (buf + len, 1024 - len, ".dot");
+
+    fp = fopen (buf, "w");
+    if (!fp) {
+      fatal_error ("Could not create file `%s'", buf);
+    }
+    printDOT (ag, fp, p->getName());
+    fclose (fp);
     delete ag;
   }
   return NULL;
