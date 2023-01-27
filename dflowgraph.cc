@@ -78,57 +78,65 @@ class VertexInfo : public AGinfo {
   ~VertexInfo() { };
 
   act_dataflow_element_types getType() { return _t; }
-    
+
+#define BUFFER_SIZE 1024
+  
   const char *info() {
-    static char buf[1024];
+    static char buf[BUFFER_SIZE];
     int x;
     switch (_t) {
     case ACT_DFLOW_FUNC:
+      snprintf (buf, BUFFER_SIZE, "shape=invhouse;style=filled;fillcolor=antiquewhite;fontsize=\"8pt\";label=\"");
+      x = strlen (buf);
       if (!_e) {
-	snprintf (buf, 1024, "shape=invhouse;label=func");
+	snprintf (buf + x, BUFFER_SIZE - x, "func\"");
+	x += strlen (buf+x);
       }
       else {
-	snprintf (buf, 1024, "shape=invhouse;label=\"");
-	x = strlen (buf);
-	sprint_uexpr (buf+x, 30, _e);
-	x = strlen (buf);
+#ifndef MIN
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#endif	
+	sprint_uexpr (buf+x, MIN(BUFFER_SIZE - x, 15), _e);
+	x += strlen (buf+x);
 	if (_init) {
-	  snprintf (buf+x, 5, " {");
+	  snprintf (buf+x, BUFFER_SIZE-x, " {");
 	  x += strlen (buf+x);
-	  sprint_uexpr (buf+x, 10, _init);
-	  strcat (buf, "}");
+	  sprint_uexpr (buf+x, BUFFER_SIZE-x, _init);
+	  x += strlen (buf+x);
+	  snprintf (buf+x, BUFFER_SIZE-x, "}");
+	  x += strlen (buf+x);
 	}
-	strcat (buf, "\"");
+	snprintf (buf+x, BUFFER_SIZE-x, "\"");
       }
       break;
 
     case ACT_DFLOW_SPLIT:
-      snprintf (buf, 1024, "shape=trapezium;label=< <table border='0' cellpadding='2' cellborder='0'><tr>");
+      snprintf (buf, BUFFER_SIZE, "shape=trapezium;style=filled;fillcolor=cadetblue1;label=< <table border='0' cellpadding='2' cellborder='0'><tr>");
       x = strlen (buf);
       for (int i=0; i < _num; i++) {
-	snprintf (buf+x, 1024-x, "<td port='p%d'>&nbsp;%d&nbsp;</td>",
+	snprintf (buf+x, BUFFER_SIZE-x, "<td port='p%d'>&nbsp;%d&nbsp;</td>",
 		  i, i);
 	x += strlen (buf+x);
       }
-      snprintf (buf+x, 1024-x, "</tr></table> >");
+      snprintf (buf+x, BUFFER_SIZE-x, "</tr></table> >");
       break;
 
     case ACT_DFLOW_MERGE:
     case ACT_DFLOW_MIXER:
     case ACT_DFLOW_ARBITER:
-      snprintf (buf, 1024, "shape=invtrapezium;label=< <table border='0' cellpadding='2' cellborder='0'><tr>");
+      snprintf (buf, BUFFER_SIZE, "style=filled;fillcolor=goldenrod;shape=invtrapezium;label=< <table border='0' cellpadding='2' cellborder='0'><tr>");
       x = strlen (buf);
       for (int i=0; i < _num; i++) {
-	snprintf (buf+x, 1024-x, "<td port='p%d'>&nbsp;%d&nbsp;</td>",
+	snprintf (buf+x, BUFFER_SIZE-x, "<td port='p%d'>&nbsp;%d&nbsp;</td>",
 		  i, i);
 	x += strlen (buf+x);
       }
-      snprintf (buf+x, 1024-x, "</tr></table> >");
+      snprintf (buf+x, BUFFER_SIZE-x, "</tr></table> >");
       
       break;
 
     case ACT_DFLOW_SINK:
-      snprintf (buf, 1024, "shape=diamond");
+      snprintf (buf, BUFFER_SIZE, "shape=diamond");
       break;
 
     default:
@@ -360,8 +368,9 @@ static void printDOT (AGraph *ag, FILE *fp, const char *name)
      fprintf (fp, " [%s];\n", t);
    }
    else {
-     fprintf (fp, " [label=\"#%d%s\"];\n", i,
-	      (v->isio == 0 ? "" : (v->isio == 1 ? "-i" : "-o")));
+     fprintf (fp, " [label=%s;style=filled;fillcolor=%s]",
+	      (v->isio == 0 ? "?" : (v->isio == 1 ? "I" : "O")),
+	      (v->isio == 0 ? "white" : (v->isio == 1 ? "yellow" : "green")));
    }
  }
 
@@ -385,9 +394,6 @@ static void printDOT (AGraph *ag, FILE *fp, const char *name)
        vi = dynamic_cast<VertexInfo *>(vx->info);
        Assert (vi, "Hmm");
        if (vi->getType() == ACT_DFLOW_MERGE) {
-	 port = -3;
-       }
-       else if (vi->getType() == ACT_DFLOW_FUNC) {
 	 port = -3;
        }
      }
@@ -416,11 +422,7 @@ static void printDOT (AGraph *ag, FILE *fp, const char *name)
        if (vi->getType() == ACT_DFLOW_SPLIT) {
 	 port = -2;
        }
-       else if (vi->getType() == ACT_DFLOW_FUNC) {
-	 port = -2;
-       }
      }
-
      
      if (port >= 0) {
        fprintf (fp, ":p%d ", port);
