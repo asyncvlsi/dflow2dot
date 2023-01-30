@@ -4,3 +4,4 @@ i386_*
 *.so
 *~
 *.dot
+Makefile.deps

@@ -79,6 +79,8 @@ class VertexInfo : public AGinfo {
 
   act_dataflow_element_types getType() { return _t; }
 
+  int hasInit () { return _init ?  1 : 0; }
+
 #define BUFFER_SIZE 1024
   
   const char *info() {
@@ -86,7 +88,7 @@ class VertexInfo : public AGinfo {
     int x;
     switch (_t) {
     case ACT_DFLOW_FUNC:
-      snprintf (buf, BUFFER_SIZE, "shape=invhouse;style=filled;fillcolor=antiquewhite;fontsize=\"8pt\";label=\"");
+      snprintf (buf, BUFFER_SIZE, "shape=invhouse;style=filled;fillcolor=antiquewhite;fontsize=\"8pt\";%slabel=\"", _init ? "border=bold;" : "");
       x = strlen (buf);
       if (!_e) {
 	snprintf (buf + x, BUFFER_SIZE - x, "func\"");
@@ -99,11 +101,11 @@ class VertexInfo : public AGinfo {
 	sprint_uexpr (buf+x, MIN(BUFFER_SIZE - x, 15), _e);
 	x += strlen (buf+x);
 	if (_init) {
-	  snprintf (buf+x, BUFFER_SIZE-x, " {");
+	  snprintf (buf+x, BUFFER_SIZE-x, " [i:");
 	  x += strlen (buf+x);
 	  sprint_uexpr (buf+x, BUFFER_SIZE-x, _init);
 	  x += strlen (buf+x);
-	  snprintf (buf+x, BUFFER_SIZE-x, "}");
+	  snprintf (buf+x, BUFFER_SIZE-x, "]");
 	  x += strlen (buf+x);
 	}
 	snprintf (buf+x, BUFFER_SIZE-x, "\"");
@@ -378,6 +380,7 @@ static void printDOT (AGraph *ag, FILE *fp, const char *name)
    EdgeInfo *ei;
    VertexInfo *vi;
    AGvertex *vx;
+   int init_token = 0;
    e = ag->getEdge (i);
    if (e->info) {
      ei = dynamic_cast<EdgeInfo *>(e->info);
@@ -395,6 +398,11 @@ static void printDOT (AGraph *ag, FILE *fp, const char *name)
        Assert (vi, "Hmm");
        if (vi->getType() == ACT_DFLOW_MERGE) {
 	 port = -3;
+       }
+       else if (vi->getType() == ACT_DFLOW_FUNC) {
+	 if (vi->hasInit()) {
+	   init_token = 1;
+	 }
        }
      }
      fprintf (fp, " v%d", e->src);
@@ -444,7 +452,12 @@ static void printDOT (AGraph *ag, FILE *fp, const char *name)
    else {
      fprintf (fp, " v%d -> v%d ", e->src, e->dst);
    }
-   fprintf (fp, "[label=\"%s\"];\n", t);
+   if (init_token) {
+     fprintf (fp, "[label=\"%s\"; arrowtail=dot; dir=both];\n", t);
+   }
+   else {
+     fprintf (fp, "[label=\"%s\"];\n", t);
+   }
  }
  fprintf (fp, "}\n");
 }
