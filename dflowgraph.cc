@@ -88,7 +88,7 @@ class VertexInfo : public AGinfo {
     int x;
     switch (_t) {
     case ACT_DFLOW_FUNC:
-      snprintf (buf, BUFFER_SIZE, "shape=invhouse;style=filled;fillcolor=antiquewhite;fontsize=\"8pt\";%slabel=\"", _init ? "border=bold;" : "");
+      snprintf (buf, BUFFER_SIZE, "shape=invhouse;style=filled;fillcolor=antiquewhite;fontsize=\"10pt\";%slabel=\"", _init ? "border=bold;" : "");
       x = strlen (buf);
       if (!_e) {
 	snprintf (buf + x, BUFFER_SIZE - x, "func\"");
@@ -113,7 +113,7 @@ class VertexInfo : public AGinfo {
       break;
 
     case ACT_DFLOW_SPLIT:
-      snprintf (buf, BUFFER_SIZE, "shape=trapezium;style=filled;fillcolor=cadetblue1;label=< <table border='0' cellpadding='2' cellborder='0'><tr>");
+      snprintf (buf, BUFFER_SIZE, "height=0.3;fontsize=10;fixedsize=true;shape=trapezium;style=filled;fillcolor=cadetblue1;label=< <table border='0' cellpadding='2' cellborder='0'><tr>");
       x = strlen (buf);
       for (int i=0; i < _num; i++) {
 	snprintf (buf+x, BUFFER_SIZE-x, "<td port='p%d'>&nbsp;%d&nbsp;</td>",
@@ -126,7 +126,7 @@ class VertexInfo : public AGinfo {
     case ACT_DFLOW_MERGE:
     case ACT_DFLOW_MIXER:
     case ACT_DFLOW_ARBITER:
-      snprintf (buf, BUFFER_SIZE, "style=filled;fillcolor=goldenrod;shape=invtrapezium;label=< <table border='0' cellpadding='2' cellborder='0'><tr>");
+      snprintf (buf, BUFFER_SIZE, "height=0.3;fontsize=10;fixedsize=true;style=filled;fillcolor=goldenrod;shape=invtrapezium;label=< <table border='0' cellpadding='2' cellborder='0'><tr>");
       x = strlen (buf);
       for (int i=0; i < _num; i++) {
 	snprintf (buf+x, BUFFER_SIZE-x, "<td port='p%d'>&nbsp;%d&nbsp;</td>",
