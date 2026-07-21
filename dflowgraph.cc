@@ -202,6 +202,7 @@ static void _visit_expr (struct pHashtable *H, Scope *sc, Expr *e,
   case E_NOT:
   case E_COMPLEMENT:
   case E_UMINUS:
+  case E_BITFIELD:
     _visit_expr (H, sc, e->u.e.l, dst);
     break;
 
@@ -279,10 +280,6 @@ static void _visit_expr (struct pHashtable *H, Scope *sc, Expr *e,
     }
     break;
     
-  case E_BITFIELD:
-    _visit_var (H, sc, (ActId *)e->u.e.l, -1, -1, dst, -1);
-    break;
-
   case E_CONCAT:
     while (e) {
       _visit_expr (H, sc, e->u.e.l, dst);
