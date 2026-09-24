@@ -1,0 +1,37 @@
+#!/usr/bin/env interact
+#
+# dflowgraph interact script
+#
+
+
+define top-level ""
+define actfile ""
+define flatten #f
+define prsmode #f
+
+define usage (lambda () (begin (echo "Usage: " (getargv 0) "[-f]" "[-g]" "-p <proc> <act>") (echo "-f : flat mode; -g : gate-level mode") (exit 1)))
+
+getopt "fp:"
+load-scm "act-opt.scm"
+
+act:get-options '(("p:" top-level) ("f" flatten) ("g" prsmode))
+
+if (=? (length act:remaining-args) 1) #t (usage)
+
+if (=? (string-length top-level) 0) (usage) #t
+
+set! actfile (car act:remaining-args)
+
+#
+# Read in design and set top-level process name
+#
+act:read actfile
+act:expand
+act:top top-level
+
+act:pass:load "actgraph_pass.so" "mypass" "actgraph"
+
+# run pass
+act:pass:set_int "mypass" "flat" (if flatten 1 0)
+act:pass:set_int "mypass" "prs"  (if prsmode 1 0)
+act:pass:run "mypass" 0

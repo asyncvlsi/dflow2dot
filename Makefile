@@ -15,19 +15,27 @@
 #  limitations under the License.
 #  
 #-------------------------------------------------------------------------
-LIB=dflowgraph_pass_$(EXT).so
+LIB1=dflowgraph_pass_$(EXT).so
+LIB2=actgraph_pass_$(EXT).so
 
-TARGETLIBS=$(LIB)
-TARGETSCRIPTS=dflow2dot
+TARGETLIBS=$(LIB1) $(LIB2)
+TARGETSCRIPTS=dflow2dot act2dot
 
-SHOBJS=dflowgraph.os
+SHOBJS1=dflowgraph.os
+SHOBJS2=actgraph.os
+
+SHOBJS=$(SHOBJS1) $(SHOBJS2)
 
 SRCS=$(SHOBJS:.os=.cc)
 
 include $(ACT_HOME)/scripts/Makefile.std
 
-$(LIB): $(SHOBJS)
-	$(ACT_HOME)/scripts/linkso $(LIB) $(SHOBJS) $(SHLIBACTPASS)
+$(LIB1): $(SHOBJS1)
+	$(ACT_HOME)/scripts/linkso $(LIB1) $(SHOBJS1) $(SHLIBACTPASS)
+
+$(LIB2): $(SHOBJS2)
+	$(ACT_HOME)/scripts/linkso $(LIB2) $(SHOBJS2) $(SHLIBACTPASS)
+
 
 
 CXXFLAGS=-std=c++17
