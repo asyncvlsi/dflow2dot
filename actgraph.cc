@@ -326,8 +326,10 @@ void *actgraph_proc (ActPass *ap, Process *p, int mode)
 	else {
 	  while (!vx->isPrimary (loc)) {
 	    loc++;
+	    Assert (loc < vx->t->arrayInfo()->size(), "Hmm");
 	  }
 	  vi = new VertexInfo (vx, loc);
+	  loc++;
 	}
 	vtx_id = g->addVertex (vi);
 	vi->set_num (vtx_id);
