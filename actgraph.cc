@@ -38,9 +38,19 @@ struct channel_io {
 class EdgeInfo : public AGinfo {
  public:
   EdgeInfo (act_connection *c) {
+    _src = NULL;
+    _dst = NULL;
     _c = c;
     _infobuf = NULL;
   }
+
+  void set_src(act_connection *c) {
+    _src = c;
+  }
+  void set_dst(act_connection *c) {
+    _dst = c;
+  }
+  
   ~EdgeInfo() { if (_infobuf) FREE (_infobuf); }
 
   const char *info() {
@@ -48,7 +58,28 @@ class EdgeInfo : public AGinfo {
       char buf[1024];
       ActId *x = _c->toid();
       x->sPrint (buf, 1024);
-      _infobuf = Strdup (buf);
+      delete x;
+      std::string s = buf;
+      if (_src) {
+	s = s + "\"; labelfontsize=10; labelfontcolor=blue; taillabel=\"";
+	x = _src->toid();
+	x->sPrint (buf, 10240);
+	delete x;
+	s = s + buf;
+      }
+      if (_dst) {
+	if (!_src) {
+	  s = s + "\"; labelfontsize=10; labelfontcolor=blue; headlabel=\"";
+	}
+	else {
+	  s = s + "\"; headlabel=\"";
+	}
+	x = _dst->toid();
+	x->sPrint (buf, 10240);
+	delete x;
+	s = s + buf;
+      }
+      _infobuf = Strdup (s.c_str());
     }
     return _infobuf;
   }
@@ -56,6 +87,7 @@ class EdgeInfo : public AGinfo {
  private:
   char *_infobuf;
   act_connection *_c;
+  act_connection *_src, *_dst;
 };
 
 class VertexInfo : public AGinfo {
@@ -76,6 +108,7 @@ class VertexInfo : public AGinfo {
   ~VertexInfo() { if (_infobuf) FREE (_infobuf); };
 
   void set_num (int x) { _num = x; }
+  int get_num()  { return _num; }
 
   const char *info() {
     if (!_infobuf) {
@@ -99,7 +132,7 @@ class VertexInfo : public AGinfo {
 	  FREE (tmp);
 	}
 	else {
-	  snprintf (buf + pos, sz, "[c]");
+	  snprintf (buf + pos, sz, "[c]\";shape=box;style=filled;fillcolor=\"yellow");
 	}
       }
       else {
@@ -178,6 +211,12 @@ void *actgraph_proc (ActPass *ap, Process *p, int mode)
   }
 
   act_boolean_netlist_t *nl = bp->getBNL (p);
+
+  std::unordered_map<act_connection *,
+    std::vector<std::tuple<act_connection *,int,int>>> local_nets;
+  local_nets.clear ();
+  
+  
   Assert (nl, "What?");
 
   g = new AGraph;
@@ -186,30 +225,47 @@ void *actgraph_proc (ActPass *ap, Process *p, int mode)
     for (int i=0; i < A_LEN (nl->ports); i++) {
       if (nl->ports[i].omit) continue;
       VertexInfo *vi = new VertexInfo (nl->ports[i].c);
+      int mode;
       if (nl->ports[i].input && !nl->ports[i].bidir) {
 	vi->set_num (g->addInput (vi));
+	mode = 0;
       }
       else {
 	vi->set_num (g->addOutput (vi));
+	if (nl->ports[i].bidir) {
+	  mode = 2;
+	}
+	else {
+	  mode = 1;
+	}
       }
+      local_nets[nl->ports[i].c].push_back(std::tuple<act_connection*,int,int>
+					   (NULL,vi->get_num(),mode));
     }
   }
   else {
     for (int i=0; i < A_LEN (nl->chpports); i++) {
       if (nl->chpports[i].omit) continue;
       VertexInfo *vi = new VertexInfo (nl->chpports[i].c);
+      int mode;
       if (nl->chpports[i].input && !nl->chpports[i].bidir) {
 	vi->set_num (g->addInput (vi));
+	mode = 0;
       }
       else {
 	vi->set_num (g->addOutput (vi));
+	if (nl->ports[i].bidir) {
+	  mode = 2;
+	}
+	else {
+	  mode = 1;
+	}
       }
+      local_nets[nl->chpports[i].c].push_back(std::tuple<act_connection*,int,int>
+					      (NULL,vi->get_num(),mode));
     }
   }
 
-  std::unordered_map<act_connection *, std::vector<std::tuple<act_connection *,int,int>>> local_nets;
-  local_nets.clear ();
-  
   // walk through instances
   ActUniqProcInstiter i(p ? p->CurScope() : ActNamespace::Global()->CurScope());
   int instcount = 0;
@@ -307,6 +363,8 @@ void *actgraph_proc (ActPass *ap, Process *p, int mode)
 	  /* c is the uniq name for the signal/channel/connection */
 	  local_nets[c].push_back (std::tuple<act_connection*,int,int>
 				   (subc,vtx_id,mode));
+
+	  instcount++;
 	}
       }
     }
@@ -321,12 +379,25 @@ void *actgraph_proc (ActPass *ap, Process *p, int mode)
 
       if (mode0 == 0 && mode1 != 0) {
 	g->addEdge (id1, id0, ei);
+	ei->set_src (conn1);
+	ei->set_dst (conn0);
       }
       else if (mode1 == 0 && mode0 != 0) {
 	g->addEdge (id0, id1, ei);
+	ei->set_src (conn0);
+	ei->set_dst (conn1);
       }
       else {
-	g->addEdge (id0, id1, ei);
+	if (g->getVertex(id0)->isio == 2 || g->getVertex(id1)->isio == 1) {
+	  g->addEdge (id1, id0, ei);
+	  ei->set_src (conn1);
+	  ei->set_dst (conn0);
+	}
+	else {
+	  g->addEdge (id0, id1, ei);
+	  ei->set_src (conn0);
+	  ei->set_dst (conn1);
+	}	  
       }
     }
     else if (vec.size() == 1) {

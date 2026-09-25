@@ -11,7 +11,7 @@ define prsmode #f
 
 define usage (lambda () (begin (echo "Usage: " (getargv 0) "[-f]" "[-g]" "-p <proc> <act>") (echo "-f : flat mode; -g : gate-level mode") (exit 1)))
 
-getopt "fp:"
+getopt "gfp:"
 load-scm "act-opt.scm"
 
 act:get-options '(("p:" top-level) ("f" flatten) ("g" prsmode))
