@@ -1,8 +1,7 @@
 #!/usr/bin/env interact
 #
-# dflowgraph interact script
+# act2dot interact script
 #
-
 
 define top-level ""
 define actfile ""

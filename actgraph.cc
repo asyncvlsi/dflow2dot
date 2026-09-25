@@ -23,11 +23,13 @@
  */
 #include <stdio.h>
 #include <act/act.h>
+#include <common/config.h>
 #include <act/passes.h>
 #include <common/hash.h>
 #include <common/agraph.h>
 #include "actgraph.h"
 #include <unordered_map>
+#include <regex.h>
 
 struct channel_io {
   list_t *src_list;
@@ -118,6 +120,7 @@ class VertexInfo : public AGinfo {
       int pos = 0;
 
       if (type == 1) {
+	/* port/connection */
 	ActId *tmp = o1._c->toid();
 	tmp->sPrint (buf + pos, sz);
 	delete tmp;
@@ -136,11 +139,17 @@ class VertexInfo : public AGinfo {
 	}
       }
       else {
+	/* instance */
+	const char *style = _getstyle (o2._vx->t->BaseType());
 	snprintf (buf, sz, "%s / %s", o2._vx->getName(),
 		  o2._vx->t->BaseType()->getName());
 	len = strlen (buf+pos);  pos += len; sz -= len;
 	if (o2._off != -1) {
 	  snprintf (buf + pos, sz, " [%d]", o2._off);
+	  len = strlen (buf+pos);  pos += len; sz -= len;
+	}
+	if (style) {
+	  snprintf (buf + pos, sz, "\";%s;labelloc=\"c", style);
 	}
       }
       _infobuf = Strdup (buf);
@@ -148,7 +157,66 @@ class VertexInfo : public AGinfo {
     return _infobuf;
   }
 
+  static void addStyle (const char *regexp, const char *style) {
+    regex_t m;
+    if (regcomp (&m, regexp, REG_EXTENDED) != 0) {
+      fatal_error ("Could not compile regular expression `%s' for matching.",
+		   regexp);
+    }
+    _styles.push_back(std::pair<std::string,std::string>(
+							 std::string (regexp),
+							 std::string (style)));
+    _regexps.push_back(m);
+  }
+ 
  private:
+  static const char *_getstyle (Type *t) {
+    _initmatch();
+    if (_styles.size() > 0) {
+      char *tmp = NULL;
+      if (TypeFactory::isUserType (t)) {
+	tmp = (dynamic_cast<UserDef *>(t))->getFullName();
+      }
+      if (regexec (&_anymatch, tmp ? tmp : t->getName(), 0, NULL, 0) == 0) {
+	for (int i=0; i < _regexps.size(); i++) {
+	  if (regexec (&_regexps[i], tmp ? tmp : t->getName(), 0, NULL, 0) == 0) {
+	    if (tmp) {
+	      FREE (tmp);
+	    }
+	    return _styles[i].second.c_str();
+	  }
+	}
+      }
+      if (tmp) {
+	FREE (tmp);
+      }
+    }
+    return NULL;
+  }
+      
+  static void _initmatch() {
+    if (_init) return;
+    if (_styles.size() > 0) {
+      std::string any;
+      for (int i = 0; i < _styles.size(); i++) {
+	if (i != 0) {
+	  any = any + "|";
+	}
+	any = any + "(" + _styles[i].first + ")";
+      }
+      if (regcomp (&_anymatch, any.c_str(), REG_EXTENDED) != 0) {
+	fatal_error ("Could not compile regular expression `%s' for matching.",
+		     any.c_str());
+      }
+      _init = true;
+    }
+  }
+
+  static std::vector<std::pair<std::string,std::string>> _styles;
+  static std::vector<regex_t> _regexps;
+  static regex_t _anymatch;
+  static bool _init;
+
   char *_infobuf;
   int type;
   struct opt1 {
@@ -166,6 +234,13 @@ class VertexInfo : public AGinfo {
   int _num;
 };
 
+/* static member elements */
+bool VertexInfo::_init = false;
+std::vector<std::pair<std::string,std::string>> VertexInfo::_styles = { };
+std::vector<regex_t> VertexInfo::_regexps = { };
+regex_t VertexInfo::_anymatch;
+
+
 void actgraph_init(ActPass *ap)
 {
   ActDynamicPass *dp = dynamic_cast<ActDynamicPass *>(ap);
@@ -176,6 +251,16 @@ void actgraph_init(ActPass *ap)
     bp = new ActBooleanizePass (ap->getAct());
   }
   dp->addDependency ("booleanize");
+  if (config_exists ("act.graph_styles")) {
+    int n = config_get_table_size ("act.graph_styles");
+    char **tab = config_get_table_string ("act.graph_styles");
+    if (n % 2 == 1) {
+      fatal_error ("act.graph_styles table must be even sized.");
+    }
+    for (int i=0; i < n/2; i++) {
+      VertexInfo::addStyle (tab[2*i], tab[2*i+1]);
+    }
+  }
 }
 
 void *actgraph_proc (ActPass *ap, Process *p, int mode)

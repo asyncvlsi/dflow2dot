@@ -1,0 +1,23 @@
+defproc one_place_buffer (chan?(int<8>) L; chan!(int<8>) R)
+{
+   int<8> x;
+ 
+   chp {
+       *[ L?x; R!x ]
+  }
+}
+
+template<pint N>
+defproc buffer (chan?(int<8>) L; chan!(int<8>) R)
+{
+   one_place_buffer b[N];
+   (i : N-1 : b[i].R = b[i+1].L;)
+   b[0].L = L;
+   b[N-1].R = R;
+}
+
+
+defproc test()
+{
+  buffer<4> b;
+}
