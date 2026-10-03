@@ -141,8 +141,22 @@ class VertexInfo : public AGinfo {
       else {
 	/* instance */
 	const char *style = _getstyle (o2._vx->t->BaseType());
-	snprintf (buf, sz, "%s / %s", o2._vx->getName(),
-		  o2._vx->t->BaseType()->getName());
+
+	if (TypeFactory::isUserType (o2._vx->t)) {
+	  UserDef *u = dynamic_cast<UserDef *> (o2._vx->t->BaseType());
+	  char *tmp = u->getFullName ();
+	  if (u->getns() && u->getns() != ActNamespace::Global()) {
+	    snprintf (buf, sz, "%s / ::%s", o2._vx->getName(), tmp);
+	  }
+	  else {
+	    snprintf (buf, sz, "%s / %s", o2._vx->getName(), tmp);
+	  }
+	  FREE (tmp);
+	}
+	else {
+	  snprintf (buf, sz, "%s / %s", o2._vx->getName(),
+		    o2._vx->t->BaseType()->getName());
+	}
 	len = strlen (buf+pos);  pos += len; sz -= len;
 	if (o2._off != -1) {
 	  snprintf (buf + pos, sz, " [%d]", o2._off);
