@@ -5,15 +5,17 @@
 
 define top-level ""
 define actfile ""
+define cells ""
+define write-cells #f
 define flatten #f
 define prsmode #f
 
-define usage (lambda () (begin (echo "Usage: " (getargv 0) "[-f]" "[-g]" "-p <proc> <act>") (echo "-f : flat mode; -g : gate-level mode") (exit 1)))
+define usage (lambda () (begin (echo "Usage: " (getargv 0) "[-f]" "[-g]" "[-c cells.act]" "[-w]" "-p <proc> <act>") (echo "-f : flat mode; -g : gate-level mode.") (echo "If a cell file is specified, -w can be used to update it in case new cells are found.") (exit 1)))
 
-getopt "gfp:"
+getopt "gfwp:c:"
 load-scm "act-opt.scm"
 
-act:get-options '(("p:" top-level) ("f" flatten) ("g" prsmode))
+act:get-options '(("p:" top-level) ("f" flatten) ("g" prsmode) ("c:" cells) ("w" write-cells))
 
 if (=? (length act:remaining-args) 1) #t (usage)
 
@@ -21,12 +23,19 @@ if (=? (string-length top-level) 0) (usage) #t
 
 set! actfile (car act:remaining-args)
 
+define have-cells? (not (=? (string-length cells) 0))
+
+if write-cells (if have-cells? #t (usage)) #t
+
 #
 # Read in design and set top-level process name
 #
 act:read actfile
+if have-cells? (act:merge cells)
 act:expand
 act:top top-level
+
+if have-cells? (begin (ckt:cell-map) (if write-cells (ckt:cell-save cells) #t))
 
 act:pass:load "actgraph_pass.so" "mypass" "actgraph"
 
