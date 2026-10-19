@@ -417,7 +417,7 @@ void *actgraph_proc (ActPass *ap, Process *p, int mode)
     subnl = bp->getBNL (x);
     Assert (subnl, "What?");
 
-    int ports_exist;
+    int ports_exist = 0;
     if (prs_mode) {
       for (int j=0; j < A_LEN (subnl->ports); j++) {
 	if (subnl->ports[j].omit == 0) {
