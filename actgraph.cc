@@ -36,6 +36,53 @@ struct channel_io {
   list_t *dst_list;
 };
 
+/*
+  Process names (e.g. generated expr::blk<...> types) can mangle into
+  .dot file names longer than the file system allows. Such names are
+  replaced by <ns>::<base>_h<hash>, both for the file name and for the
+  type name printed in the .dot files, so that a viewer that derives
+  the file name from the type name in a node label still finds it.
+*/
+#define MAX_DOT_FILENAME 200
+
+static Act *graph_act = NULL;
+
+static std::string graph_type_name (UserDef *u, bool *hashed = NULL)
+{
+  char *tmp = u->getFullName ();
+  std::string full = tmp;
+  FREE (tmp);
+  if (u->getns() && u->getns() != ActNamespace::Global()) {
+    full = "::" + full;
+  }
+  if (hashed) *hashed = false;
+
+  std::string mangled (full.length() * 4 + 16, '\0');
+  if (graph_act->mangle_string (full.c_str(), &mangled[0],
+				mangled.size()) == 0 &&
+      strlen (mangled.c_str()) + 4 <= MAX_DOT_FILENAME) {
+    return full;
+  }
+
+  /* 64-bit FNV-1a: stable across runs and platforms */
+  unsigned long long h = 0xcbf29ce484222325ULL;
+  for (unsigned char c : full) {
+    h ^= c;
+    h *= 0x100000001b3ULL;
+  }
+  char hex[17];
+  snprintf (hex, 17, "%016llx", h);
+
+  /* keep the namespace prefix and the start of the process name, drop
+     the parameters */
+  std::string base = full.substr (0, full.find ('<'));
+  size_t colon = base.rfind ("::");
+  size_t start = (colon == std::string::npos) ? 0 : colon + 2;
+  base = base.substr (0, start + 32);
+  if (hashed) *hashed = true;
+  return base + "_h" + hex;
+}
+
 
 class EdgeInfo : public AGinfo {
  public:
@@ -130,9 +177,7 @@ class VertexInfo : public AGinfo {
 	  snprintf (buf+ pos, sz, " / ");
 	  len = strlen (buf+pos); sz -= len; pos += len;
 	  
-	  char *tmp = o1._p->getFullName ();
-	  snprintf (buf+pos, sz, "%s", tmp);
-	  FREE (tmp);
+	  snprintf (buf+pos, sz, "%s", graph_type_name (o1._p).c_str());
 	}
 	else {
 	  snprintf (buf + pos, sz, "[c]\";shape=box;style=filled;fillcolor=\"yellow");
@@ -144,14 +189,8 @@ class VertexInfo : public AGinfo {
 
 	if (TypeFactory::isUserType (o2._vx->t)) {
 	  UserDef *u = dynamic_cast<UserDef *> (o2._vx->t->BaseType());
-	  char *tmp = u->getFullName ();
-	  if (u->getns() && u->getns() != ActNamespace::Global()) {
-	    snprintf (buf, sz, "%s / ::%s", o2._vx->getName(), tmp);
-	  }
-	  else {
-	    snprintf (buf, sz, "%s / %s", o2._vx->getName(), tmp);
-	  }
-	  FREE (tmp);
+	  snprintf (buf, sz, "%s / %s", o2._vx->getName(),
+		    graph_type_name (u).c_str());
 	}
 	else {
 	  snprintf (buf, sz, "%s / %s", o2._vx->getName(),
@@ -260,6 +299,7 @@ void actgraph_init(ActPass *ap)
   ActDynamicPass *dp = dynamic_cast<ActDynamicPass *>(ap);
   ActBooleanizePass *bp;
   Assert(dp, "What?!");
+  graph_act = ap->getAct();
   config_set_state(dp->getConfig());
   if (!ap->getAct()->pass_find ("booleanize")) {
     bp = new ActBooleanizePass (ap->getAct());
@@ -523,7 +563,21 @@ void *actgraph_proc (ActPass *ap, Process *p, int mode)
   FILE *fp;
   char buf[1024];
   int len;
-  ap->getAct()->msnprintfproc (buf, 1024, p);
+  bool hashed;
+  std::string tname = graph_type_name (p, &hashed);
+  std::string gname = p->getName();
+  if (hashed) {
+    ap->getAct()->mangle_string (tname.c_str(), buf, 1024);
+    size_t colon = tname.rfind ("::");
+    gname = (colon == std::string::npos) ? tname : tname.substr (colon + 2);
+    char *full = p->getFullName ();
+    fprintf (stderr, "act2dot: long process name hashed: %s -> %s\n",
+	     full, tname.c_str());
+    FREE (full);
+  }
+  else {
+    ap->getAct()->msnprintfproc (buf, 1024, p);
+  }
   len = strlen (buf);
   snprintf (buf + len, 1024 - len, ".dot");
 
@@ -531,7 +585,7 @@ void *actgraph_proc (ActPass *ap, Process *p, int mode)
   if (!fp) {
     fatal_error ("Could not create file `%s'", buf);
   }
-  g->printDot (fp, p->getName());
+  g->printDot (fp, gname.c_str());
   fclose (fp);
   return g;
 }
