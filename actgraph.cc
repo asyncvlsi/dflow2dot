@@ -377,7 +377,7 @@ void *actgraph_proc (ActPass *ap, Process *p, int mode)
     subnl = bp->getBNL (x);
     Assert (subnl, "What?");
 
-    int ports_exist;
+    int ports_exist=0;
     if (prs_mode) {
       for (int j=0; j < A_LEN (subnl->ports); j++) {
 	if (subnl->ports[j].omit == 0) {
@@ -521,11 +521,11 @@ void *actgraph_proc (ActPass *ap, Process *p, int mode)
   }
 
   FILE *fp;
-  char buf[1024];
+  char buf[255];
   int len;
-  ap->getAct()->msnprintfproc (buf, 1024, p);
+  ap->getAct()->msnprintfproc (buf, 255, p);
   len = strlen (buf);
-  snprintf (buf + len, 1024 - len, ".dot");
+  snprintf (buf + len, 255 - len, ".dot");
 
   fp = fopen (buf, "w");
   if (!fp) {
